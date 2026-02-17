@@ -1,12 +1,13 @@
-import { Request, Response } from "express";
-import { Chat } from "../models/Chat";
-import { User } from "../models/User";
+import type { Request, Response } from "express";
+import { Chat } from "../models/Chat.js";
+import { User } from "../models/User.js";
 import { v4 as uuidv4 } from 'uuid';
+import type { AuthRequest } from "../middleware/auth.js";
 
 export const createGroup = async (req: Request, res: Response) => {
     try {
         const { name, description, groupImage } = req.body;
-        const userId = req.auth.userId;
+        const userId = (req as AuthRequest).userId;
 
         const user = await User.findOne({ clerkId: userId });
         if (!user) {
@@ -38,7 +39,7 @@ export const createGroup = async (req: Request, res: Response) => {
 export const joinGroup = async (req: Request, res: Response) => {
     try {
         const { inviteCode } = req.body;
-        const userId = req.auth.userId;
+        const userId = (req as AuthRequest).userId;
 
         const user = await User.findOne({ clerkId: userId });
         if (!user) {
@@ -67,7 +68,7 @@ export const joinGroup = async (req: Request, res: Response) => {
 export const generateInviteCode = async (req: Request, res: Response) => {
     try {
         const { groupId } = req.params;
-        const userId = req.auth.userId;
+        const userId = (req as AuthRequest).userId;
 
         const user = await User.findOne({ clerkId: userId });
         if (!user) {

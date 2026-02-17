@@ -134,3 +134,38 @@ export const getLeaderboard = async (req: Request, res: Response) => {
         res.status(500).json({ message: "Failed to fetch leaderboard" });
     }
 };
+// End Quiz
+export const endQuiz = async (req: AuthRequest, res: Response) => {
+    try {
+        const { quizId } = req.body;
+        const userId = req.userId;
+
+        const quiz = await Quiz.findById(quizId);
+        if (!quiz) return res.status(404).json({ message: "Quiz not found" });
+
+        const group = await Chat.findOne({ _id: quiz.group, isGroup: true });
+        if (!group) return res.status(404).json({ message: "Group not found" });
+
+        if (group.admin?.toString() !== userId) {
+            return res.status(403).json({ message: "Only admin can end the quiz" });
+        }
+
+        quiz.isActive = false;
+        await quiz.save();
+
+        group.settings = {
+            onlyAdminsCanPost: group.settings?.onlyAdminsCanPost || false,
+            isQuizActive: false
+        };
+        await group.save();
+
+        // Socket Broadcast
+        const { getIO } = await import("../utils/socket.js");
+        getIO().to(`chat:${group._id}`).emit("quiz-ended", { quizId });
+
+        res.status(200).json({ message: "Quiz ended" });
+    } catch (error) {
+        console.error("Error ending quiz:", error);
+        res.status(500).json({ message: "Failed to end quiz" });
+    }
+};
