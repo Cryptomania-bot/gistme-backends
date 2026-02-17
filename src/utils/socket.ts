@@ -6,113 +6,96 @@ import { Chat } from "../models/Chat.js";
 import { User } from "../models/User.js";
 
 
-//store online users in memory: userId
-export const onlineUsers: Map<string, string> = new Map()
+// Store online users: userId -> Set of socketIds
+export const onlineUsers: Map<string, Set<string>> = new Map();
 
 let io: SocketServer;
 
-
 export const initializeSocket = (httpServer: HttpServer) => {
     const allowedOrigins = [
-        "http://localhost:8081",//Expo mobile
+        "https://gistme.netlify.app",
+        "http://localhost:8081",
+        "http://localhost:5173",
+        "http://localhost:3000",
+    ];
+    io = new SocketServer(httpServer, {
+        cors: {
+            origin: allowedOrigins,
+            credentials: true
+        }
+    });
 
-        "http://localhost:5173",//vite web dev
-        process.env.FRONTEND_URL as string,//production
-
-
-    ]
-    io = new SocketServer(httpServer, { cors: { origin: allowedOrigins } });
-
-    //verify socket
-
+    // Verify socket
     io.use(async (socket, next) => {
-
-
-        const token = socket.handshake.auth.token ///what user will send
-
+        const token = socket.handshake.auth.token;
         if (!token) return next(new Error("Authentication error"));
         try {
             const session = await verifyToken(token, {
                 secretKey: process.env.CLERK_SECRET_KEY!
             });
-
-            const clerkId = session.sub
+            const clerkId = session.sub;
             const user = await User.findOne({ clerkId });
-
             if (!user) return next(new Error("User not found"));
-            socket.data.userId = user._id.toString()
-
-            next()
+            socket.data.userId = user._id.toString();
+            next();
         } catch (error: any) {
-            next(new Error(error))
-
-
+            next(new Error(error));
         }
-    }
-    );
+    });
 
     io.on("connection", (socket) => {
+        const userId = socket.data.userId;
 
-        const userId = socket.data.userId
+        // Add this socket to user's set
+        if (!onlineUsers.has(userId)) {
+            onlineUsers.set(userId, new Set());
+            // First session - broadcast online
+            socket.broadcast.emit("user-online", { userId });
+        }
+        onlineUsers.get(userId)?.add(socket.id);
 
-        // send list of online user
-
+        // Send current online user list (keys of our map)
         socket.emit("online-users", { userIds: Array.from(onlineUsers.keys()) });
 
-        onlineUsers.set(userId, socket.id);
-        // notify userd
-
-        socket.broadcast.emit("user-online", { userId });
         socket.join(`user:${userId}`);
+
         socket.on("join-chat", (chatId: string) => {
-            socket.join(`chat:${chatId}`)
+            socket.join(`chat:${chatId}`);
         });
-        //leave chat
+
         socket.on("leave-chat", (chatId: string) => {
-            socket.leave(`chat:${chatId}`)
+            socket.leave(`chat:${chatId}`);
         });
 
-        //listen incoming message
-
-        socket.on('send-messages', async (data: { chatId: string, text: string }) => {
-
+        socket.on('send-message', async (data: { chatId: string, text: string }) => {
             try {
-                const { chatId, text } = data
-
+                const { chatId, text } = data;
                 const chat = await Chat.findOne({
-                    _id: chatId
-                    ,
+                    _id: chatId,
                     participants: userId
-                })
-
+                });
                 if (!chat) {
                     socket.emit("socket-error", { message: "Chat not found" });
                     return;
                 }
-
                 if (chat.isGroup && chat.settings?.onlyAdminsCanPost) {
                     if (chat.admin?.toString() !== userId) {
                         socket.emit("socket-error", { message: "Only admins can post in this group" });
                         return;
                     }
                 }
-
                 const message = await Message.create({
                     chat: chatId,
                     sender: userId,
                     text,
                 });
-
                 chat.lastMessage = message._id;
-                chat.lastMessageAt = new Date()
-                await chat.save()
-
-                await message.populate("sender", "name avatar")
-
-                io.to(`chat:${chatId}`).emit("new-messages", message)
-
+                chat.lastMessageAt = new Date();
+                await chat.save();
+                await message.populate("sender", "name avatar");
+                io.to(`chat:${chatId}`).emit("new-message", message);
                 for (const participantId of chat.participants) {
-                    io.to(`user:${participantId}`).emit("new-messages", message);
+                    io.to(`user:${participantId}`).emit("new-message", message);
                 }
             } catch (error) {
                 console.error("Error sending message:", error);
@@ -128,16 +111,14 @@ export const initializeSocket = (httpServer: HttpServer) => {
             }
         });
 
-        // Quiz Events
         socket.on("create-quiz", (data: { groupId: string, quizId: string, title: string }) => {
             io.to(`chat:${data.groupId}`).emit("quiz-started", {
                 quizId: data.quizId,
                 title: data.title,
-                createdBy: userId // or fetch name
+                createdBy: userId
             });
         });
 
-        // WebRTC Signaling
         socket.on("call-offer", (data: { callerId: string, receiverId: string, offer: any }) => {
             io.to(`user:${data.receiverId}`).emit("call-offer", {
                 callerId: userId,
@@ -165,17 +146,20 @@ export const initializeSocket = (httpServer: HttpServer) => {
             });
         });
 
-
         socket.on("disconnect", () => {
-            onlineUsers.delete(userId);
-            socket.broadcast.emit("user-offline", { userId });
+            const userSockets = onlineUsers.get(userId);
+            if (userSockets) {
+                userSockets.delete(socket.id);
+                if (userSockets.size === 0) {
+                    onlineUsers.delete(userId);
+                    socket.broadcast.emit("user-offline", { userId });
+                }
+            }
         });
-    })
+    });
 
-
-
-    return io
-}
+    return io;
+};
 
 export const getIO = () => {
     if (!io) {

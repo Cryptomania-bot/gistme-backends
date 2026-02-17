@@ -43,7 +43,7 @@ export async function authCallback(req: Request, res: Response, next: NextFuncti
 
                 // Ensure a unique email even if none provided by Clerk
                 const email = clerkUser.emailAddresses[0]?.emailAddress ||
-                    `${clerkId}@no-email.clerk.user`;
+                    `${clerkId}@gistme.clerk.user`;
 
                 // Build name with fallbacks
                 let name = "Unnamed User";
@@ -53,13 +53,13 @@ export async function authCallback(req: Request, res: Response, next: NextFuncti
                     name = clerkUser.emailAddresses[0].emailAddress.split('@')[0] || "Unnamed User";
                 }
 
-                console.log(`[AuthSync] Creating user with email: ${email}, name: ${name}`);
+                console.log(`[AuthSync] Creating user with email: ${email}, name: ${name}, clerkId: ${clerkUser.id}`);
 
                 user = await User.create({
-                    clerkId: clerkUser.id as string,
-                    email: email as string,
-                    name: name as string,
-                    avatar: (clerkUser.imageUrl || '') as string,
+                    clerkId: clerkUser.id,
+                    email: email,
+                    name: name,
+                    avatar: (clerkUser.imageUrl || ''),
                 });
 
                 console.log(`[AuthSync] Success! User recorded with DB ID: ${user._id}`);
