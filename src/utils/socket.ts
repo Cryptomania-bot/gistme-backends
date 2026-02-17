@@ -172,9 +172,9 @@ export const initializeSocket = (httpServer: HttpServer) => {
         });
     })
 
-});
 
-return io
+
+    return io
 }
 
 export const getIO = () => {
