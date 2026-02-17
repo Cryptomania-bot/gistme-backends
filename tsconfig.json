@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    /* Environment Settings */
+    "module": "nodenext",
+    "moduleResolution": "nodenext", // Added: Helps TS find node_modules
+    "target": "esnext",
+    "esModuleInterop": true,        // Added: Fixes "default import" errors
+    
+    /* REMOVED: "types": [] - This was the main culprit */
+    "types": ["node"],              // Explicitly allow Node types
+
+    /* File Layout */
+    "rootDir": "./",                // Adjusted to match your folder structure
+    "outDir": "./dist",
+
+    /* Other Outputs */
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+
+    /* Stricter Typechecking Options */
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+
+    /* Recommended Options */
+    "strict": true,
+    "jsx": "react-jsx",
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,           // Essential to ignore version conflicts in @types
+    "moduleDetection": "force"
+  },
+  "include": ["**/*.ts"],           // Tells TS which files to watch
+  "exclude": ["node_modules"]       // Tells TS what to ignore
+}
