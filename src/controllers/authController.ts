@@ -22,38 +22,63 @@ export async function getMe(req: AuthRequest, res: Response, next: NextFunction)
 export async function authCallback(req: Request, res: Response, next: NextFunction) {
     try {
         const { userId: clerkId } = getAuth(req);
-        console.log("Auth callback triggered for clerkId:", clerkId);
+        console.log(`[AuthSync] Triggered for Clerk ID: ${clerkId}`);
 
         if (!clerkId) {
-            console.error("Auth callback failed: No clerkId found in request");
-            return res.status(401).json({ message: 'Unauthorized- invalid token' });
+            console.error("[AuthSync] Failed: No clerkId found in request headers/token");
+            return res.status(401).json({ message: 'Unauthorized - Invalid Clerk token' });
         }
 
         let user = await User.findOne({ clerkId });
+
         if (!user) {
-            console.log("New user detected, fetching details from Clerk...");
-            const clerkUser = await clerkClient.users.getUser(clerkId);
+            console.log(`[AuthSync] User ${clerkId} not found in DB. Fetching from Clerk...`);
+            try {
+                const clerkUser = await clerkClient.users.getUser(clerkId);
+                console.log(`[AuthSync] Clerk data received for ${clerkId}:`, {
+                    hasEmail: clerkUser.emailAddresses.length > 0,
+                    firstName: clerkUser.firstName,
+                    lastName: clerkUser.lastName
+                });
 
-            // Robust email extraction
-            const email = clerkUser.emailAddresses[0]?.emailAddress ||
-                clerkUser.primaryEmailAddressId ||
-                `${clerkId}@clerk.user`;
+                // Ensure a unique email even if none provided by Clerk
+                const email = clerkUser.emailAddresses[0]?.emailAddress ||
+                    `${clerkId}@no-email.clerk.user`;
 
-            user = await User.create({
-                clerkId: clerkUser.id,
-                email: email,
-                name: clerkUser.firstName ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim() : clerkUser.emailAddresses[0]?.emailAddress?.split('@')[0] || 'Unnamed User',
-                avatar: clerkUser.imageUrl || '',
-            });
-            console.log("User successfully recorded in database:", user._id);
+                // Build name with fallbacks
+                let name = "Unnamed User";
+                if (clerkUser.firstName) {
+                    name = `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim();
+                } else if (clerkUser.emailAddresses[0]?.emailAddress) {
+                    name = clerkUser.emailAddresses[0].emailAddress.split('@')[0] || "Unnamed User";
+                }
+
+                console.log(`[AuthSync] Creating user with email: ${email}, name: ${name}`);
+
+                user = await User.create({
+                    clerkId: clerkUser.id as string,
+                    email: email as string,
+                    name: name as string,
+                    avatar: (clerkUser.imageUrl || '') as string,
+                });
+
+                console.log(`[AuthSync] Success! User recorded with DB ID: ${user._id}`);
+            } catch (clerkError: any) {
+                console.error(`[AuthSync] Clerk API Error for ${clerkId}:`, clerkError.message);
+                return res.status(500).json({ message: "Failed to fetch user data from Clerk", error: clerkError.message });
+            }
         } else {
-            console.log("Existing user found in database:", user._id);
+            console.log(`[AuthSync] User ${clerkId} already exists in DB as ${user._id}`);
         }
+
         res.json(user);
     }
-    catch (error) {
-        console.error("Error in authCallback:", error);
-        next(error)
+    catch (error: any) {
+        console.error("[AuthSync] Global Error:", error.message, error.stack);
+        // Explicitly check for MongoDB duplicate key error (11000)
+        if (error.code === 11000) {
+            return res.status(409).json({ message: "User or Email already exists", details: error.keyValue });
+        }
+        next(error);
     }
-
 }
