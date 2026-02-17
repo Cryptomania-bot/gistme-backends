@@ -34,9 +34,14 @@ export async function authCallback(req: Request, res: Response, next: NextFuncti
             console.log("New user detected, fetching details from Clerk...");
             const clerkUser = await clerkClient.users.getUser(clerkId);
 
+            // Robust email extraction
+            const email = clerkUser.emailAddresses[0]?.emailAddress ||
+                clerkUser.primaryEmailAddressId ||
+                `${clerkId}@clerk.user`;
+
             user = await User.create({
                 clerkId: clerkUser.id,
-                email: clerkUser.emailAddresses[0]?.emailAddress || '',
+                email: email,
                 name: clerkUser.firstName ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim() : clerkUser.emailAddresses[0]?.emailAddress?.split('@')[0] || 'Unnamed User',
                 avatar: clerkUser.imageUrl || '',
             });
