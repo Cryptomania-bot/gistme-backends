@@ -9,6 +9,8 @@ import { User } from "../models/User.js";
 //store online users in memory: userId
 export const onlineUsers: Map<string, string> = new Map()
 
+let io: SocketServer;
+
 
 export const initializeSocket = (httpServer: HttpServer) => {
     const allowedOrigins = [
@@ -19,7 +21,7 @@ export const initializeSocket = (httpServer: HttpServer) => {
 
 
     ]
-    const io = new SocketServer(httpServer, { cors: { origin: allowedOrigins } });
+    io = new SocketServer(httpServer, { cors: { origin: allowedOrigins } });
 
     //verify socket
 
@@ -118,10 +120,22 @@ export const initializeSocket = (httpServer: HttpServer) => {
             }
         });
 
-        //TODO:LATER
-        socket.on("typing", async (data) => { });
+        socket.on("typing", (data: { chatId: string, isTyping: boolean }) => {
+            if (data.isTyping) {
+                socket.to(`chat:${data.chatId}`).emit("typing", { userId, chatId: data.chatId });
+            } else {
+                socket.to(`chat:${data.chatId}`).emit("stop-typing", { userId, chatId: data.chatId });
+            }
+        });
 
-
+        // Quiz Events
+        socket.on("create-quiz", (data: { groupId: string, quizId: string, title: string }) => {
+            io.to(`chat:${data.groupId}`).emit("quiz-started", {
+                quizId: data.quizId,
+                title: data.title,
+                createdBy: userId // or fetch name
+            });
+        });
 
         // WebRTC Signaling
         socket.on("call-offer", (data: { callerId: string, receiverId: string, offer: any }) => {
@@ -145,6 +159,12 @@ export const initializeSocket = (httpServer: HttpServer) => {
             });
         });
 
+        socket.on("end-call", (data: { targetId: string }) => {
+            io.to(`user:${data.targetId}`).emit("call-ended", {
+                enderId: userId
+            });
+        });
+
 
         socket.on("disconnect", () => {
             onlineUsers.delete(userId);
@@ -152,5 +172,14 @@ export const initializeSocket = (httpServer: HttpServer) => {
         });
     })
 
-    return io
+});
+
+return io
+}
+
+export const getIO = () => {
+    if (!io) {
+        throw new Error("Socket.io not initialized!");
+    }
+    return io;
 }

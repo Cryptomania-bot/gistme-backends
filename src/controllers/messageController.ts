@@ -3,7 +3,7 @@ import type { AuthRequest } from "../middleware/auth.js";
 import { Message } from "../models/message.js";
 import { Chat } from "../models/Chat.js";
 
-export async function getMessages (req: AuthRequest, res: Response, next: NextFunction) {
+export async function getMessages(req: AuthRequest, res: Response, next: NextFunction) {
     try {
         const userId = req.userId;
         const { chatId } = req.params;
@@ -12,8 +12,11 @@ export async function getMessages (req: AuthRequest, res: Response, next: NextFu
         if (!chat) {
             return res.status(404).json({ message: 'Chat not found' });
         }
-const messages = await Message.find({chat:chatId}).populate("sender", "name email avatar").sort({createdAt:1});
-res.json(messages);
+        const messages = await Message.find({ chat: chatId })
+            .populate("sender", "name email avatar")
+            .populate("quiz", "title createdBy")
+            .sort({ createdAt: 1 });
+        res.json(messages);
     }
     catch (error) {
         res.status(500);

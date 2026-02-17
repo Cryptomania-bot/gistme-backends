@@ -41,6 +41,39 @@ export const createQuiz = async (req: AuthRequest, res: Response) => {
         };
         await group.save();
 
+        // Create a system message for the quiz
+        // We'll use the user as sender but formatted as a quiz announcement?
+        // Or maybe a system user? For now let's use the creator.
+        // Actually, let's create a message linked to the quiz.
+
+        // Import Message model needed
+        const { Message } = await import("../models/message.js");
+
+        const message = await Message.create({
+            chat: groupId,
+            sender: user._id,
+            text: `Quiz Started: ${title}`,
+            quiz: quiz._id
+        });
+
+        // Populate sender for socket event
+        await message.populate("sender", "name avatar");
+        await message.populate("quiz", "title createdBy");
+
+        // Socket Broadcast
+        const { getIO } = await import("../utils/socket.js");
+        const io = getIO();
+
+        // Emit new message with quiz attachment
+        io.to(`chat:${groupId}`).emit("new-messages", message);
+
+        // Also emit specific quiz-started event if clients listen for it specially
+        io.to(`chat:${groupId}`).emit("quiz-started", {
+            quizId: quiz._id,
+            title: quiz.title,
+            createdBy: user.name
+        });
+
         res.status(201).json(quiz);
     } catch (error) {
         console.error("Error creating quiz:", error);
