@@ -12,7 +12,17 @@ import cors from 'cors';
 
 const app = express();
 
-app.use(cors());
+const allowedOrigins = [
+  'https://gistme.netlify.app', // Your production frontend
+  'http://localhost:8081',      // Default for React Native Metro bundler
+  // Add your local web development URL if you have one, e.g., 'http://localhost:3000'
+];
+
+// Configure CORS to allow requests from your specific frontend domains
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true, // This is crucial for allowing Authorization headers
+}));
 app.use(express.json());
 
 // Health Check - This is a public route and should come before any auth middleware.
