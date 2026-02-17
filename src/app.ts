@@ -13,9 +13,10 @@ import cors from 'cors';
 const app = express();
 
 const allowedOrigins = [
-  'https://gistme.netlify.app', // Your production frontend
-  'http://localhost:8081',      // Default for React Native Metro bundler
-  // Add your local web development URL if you have one, e.g., 'http://localhost:3000'
+  'https://gistme.netlify.app',
+  'http://localhost:8081',
+  'http://localhost:5173',
+  'http://localhost:3000',
 ];
 
 // Configure CORS to allow requests from your specific frontend domains

@@ -22,12 +22,16 @@ export async function getMe(req: AuthRequest, res: Response, next: NextFunction)
 export async function authCallback(req: Request, res: Response, next: NextFunction) {
     try {
         const { userId: clerkId } = getAuth(req);
+        console.log("Auth callback triggered for clerkId:", clerkId);
+
         if (!clerkId) {
+            console.error("Auth callback failed: No clerkId found in request");
             return res.status(401).json({ message: 'Unauthorized- invalid token' });
         }
 
         let user = await User.findOne({ clerkId });
         if (!user) {
+            console.log("New user detected, fetching details from Clerk...");
             const clerkUser = await clerkClient.users.getUser(clerkId);
 
             user = await User.create({
@@ -36,10 +40,14 @@ export async function authCallback(req: Request, res: Response, next: NextFuncti
                 name: clerkUser.firstName ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim() : clerkUser.emailAddresses[0]?.emailAddress?.split('@')[0] || 'Unnamed User',
                 avatar: clerkUser.imageUrl || '',
             });
+            console.log("User successfully recorded in database:", user._id);
+        } else {
+            console.log("Existing user found in database:", user._id);
         }
         res.json(user);
     }
-    catch (error) { 
+    catch (error) {
+        console.error("Error in authCallback:", error);
         next(error)
     }
 
