@@ -22,4 +22,4 @@ export declare const Message: mongoose.Model<IMessage, {}, {}, {}, mongoose.Docu
 }> & {
     __v: number;
 }>>;
-//# sourceMappingURL=message.d.ts.map
+//# sourceMappingURL=Message.d.ts.map
