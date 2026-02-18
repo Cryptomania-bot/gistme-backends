@@ -9,7 +9,7 @@ export const createGroup = async (req: Request, res: Response) => {
         const { name, description, groupImage } = req.body;
         const userId = (req as AuthRequest).userId;
 
-        const user = await User.findOne({ clerkId: userId });
+        const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
@@ -41,7 +41,7 @@ export const joinGroup = async (req: Request, res: Response) => {
         const { inviteCode } = req.body;
         const userId = (req as AuthRequest).userId;
 
-        const user = await User.findOne({ clerkId: userId });
+        const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
@@ -70,7 +70,7 @@ export const generateInviteCode = async (req: Request, res: Response) => {
         const { groupId } = req.params;
         const userId = (req as AuthRequest).userId;
 
-        const user = await User.findOne({ clerkId: userId });
+        const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
