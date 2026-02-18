@@ -67,9 +67,9 @@ export const initializeSocket = (httpServer: HttpServer) => {
             socket.leave(`chat:${chatId}`);
         });
 
-        socket.on('send-message', async (data: { chatId: string, text: string }) => {
+        socket.on('send-message', async (data: { chatId: string, text?: string, mediaUrl?: string, type?: 'text' | 'image' | 'video' }) => {
             try {
-                const { chatId, text } = data;
+                const { chatId, text, mediaUrl, type = 'text' } = data;
                 const chat = await Chat.findOne({
                     _id: chatId,
                     participants: userId
@@ -88,6 +88,8 @@ export const initializeSocket = (httpServer: HttpServer) => {
                     chat: chatId,
                     sender: userId,
                     text,
+                    mediaUrl,
+                    type
                 });
                 chat.lastMessage = message._id;
                 chat.lastMessageAt = new Date();
