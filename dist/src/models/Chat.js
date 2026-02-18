@@ -1,0 +1,18 @@
+import mongoose, { Schema } from "mongoose";
+const chatSchema = new Schema({
+    participants: [{ type: Schema.Types.ObjectId, ref: "User", required: true }],
+    lastMessage: { type: Schema.Types.ObjectId, ref: "Message", default: null },
+    lastMessageAt: { type: Date, default: Date.now },
+    isGroup: { type: Boolean, default: false },
+    name: { type: String },
+    groupImage: { type: String, default: null },
+    admin: { type: Schema.Types.ObjectId, ref: "User" },
+    inviteCode: { type: String, unique: true, sparse: true },
+    settings: {
+        onlyAdminsCanPost: { type: Boolean, default: false },
+        isQuizActive: { type: Boolean, default: false },
+    }
+}, { timestamps: true });
+const Chat = mongoose.model("Chat", chatSchema);
+export { Chat };
+//# sourceMappingURL=Chat.js.map

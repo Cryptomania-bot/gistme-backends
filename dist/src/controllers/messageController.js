@@ -1,14 +1,10 @@
-import type { NextFunction, Response } from "express";
-import type { AuthRequest } from "../middleware/auth.js";
 import { Message } from "../models/Message.js";
 import { Chat } from "../models/Chat.js";
-
-export async function getMessages(req: AuthRequest, res: Response, next: NextFunction) {
+export async function getMessages(req, res, next) {
     try {
         const userId = req.userId;
         const { chatId } = req.params;
-        const chat = await Chat.findOne({ _id: chatId, participants: userId })
-
+        const chat = await Chat.findOne({ _id: chatId, participants: userId });
         if (!chat) {
             return res.status(404).json({ message: 'Chat not found' });
         }
@@ -23,3 +19,4 @@ export async function getMessages(req: AuthRequest, res: Response, next: NextFun
         next(error);
     }
 }
+//# sourceMappingURL=messageController.js.map
