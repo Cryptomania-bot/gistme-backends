@@ -15,6 +15,7 @@ export async function getMessages(req: AuthRequest, res: Response, next: NextFun
         const messages = await Message.find({ chat: chatId })
             .populate("sender", "name email avatar")
             .populate("quiz", "title createdBy")
+            .populate("replyTo", "text mediaUrl sender type")
             .sort({ createdAt: 1 });
         res.json(messages);
     }

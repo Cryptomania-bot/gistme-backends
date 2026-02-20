@@ -9,6 +9,7 @@ export interface IMessage extends Document {
     createdAt: Date;
     updatedAt: Date;
     quiz?: mongoose.Types.ObjectId;
+    replyTo?: mongoose.Types.ObjectId;
 }
 
 const messageSchema = new Schema<IMessage>({
@@ -23,7 +24,8 @@ const messageSchema = new Schema<IMessage>({
     text: { type: String, trim: true },
     mediaUrl: { type: String },
     type: { type: String, enum: ['text', 'image', 'video', 'quiz'], default: 'text' },
-    quiz: { type: Schema.Types.ObjectId, ref: "Quiz" }
+    quiz: { type: Schema.Types.ObjectId, ref: "Quiz" },
+    replyTo: { type: Schema.Types.ObjectId, ref: "Message", default: null }
 }, { timestamps: true });
 messageSchema.index({ chat: 1, createdAt: 1 });
 

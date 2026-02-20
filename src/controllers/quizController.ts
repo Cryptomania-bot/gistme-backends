@@ -3,6 +3,8 @@ import { Chat } from "../models/Chat.js";
 import { Quiz } from "../models/Quiz.js";
 import { QuizScore } from "../models/QuizScore.js";
 import { User } from "../models/User.js";
+import { Message } from "../models/Message.js";
+import { getIO } from "../utils/socket.js";
 import type { AuthRequest } from "../middleware/auth.js";
 
 // Admin starts a quiz
@@ -46,9 +48,6 @@ export const createQuiz = async (req: AuthRequest, res: Response) => {
         // Or maybe a system user? For now let's use the creator.
         // Actually, let's create a message linked to the quiz.
 
-        // Import Message model needed
-        const { Message } = await import("../models/Message.js");
-
         const message = await Message.create({
             chat: groupId,
             sender: user._id,
@@ -60,12 +59,10 @@ export const createQuiz = async (req: AuthRequest, res: Response) => {
         await message.populate("sender", "name avatar");
         await message.populate("quiz", "title createdBy");
 
-        // Socket Broadcast
-        const { getIO } = await import("../utils/socket.js");
         const io = getIO();
 
         // Emit new message with quiz attachment
-        io.to(`chat:${groupId}`).emit("new-messages", message);
+        io.to(`chat:${groupId}`).emit("new-message", message);
 
         // Also emit specific quiz-started event if clients listen for it specially
         io.to(`chat:${groupId}`).emit("quiz-started", {

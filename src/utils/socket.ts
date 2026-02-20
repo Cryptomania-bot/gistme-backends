@@ -67,9 +67,9 @@ export const initializeSocket = (httpServer: HttpServer) => {
             socket.leave(`chat:${chatId}`);
         });
 
-        socket.on('send-message', async (data: { chatId: string, text?: string, mediaUrl?: string, type?: 'text' | 'image' | 'video' }) => {
+        socket.on('send-message', async (data: { chatId: string, text?: string, mediaUrl?: string, type?: 'text' | 'image' | 'video', replyToId?: string }) => {
             try {
-                const { chatId, text, mediaUrl, type = 'text' } = data;
+                const { chatId, text, mediaUrl, type = 'text', replyToId } = data;
                 const chat = await Chat.findOne({
                     _id: chatId,
                     participants: userId
@@ -89,12 +89,17 @@ export const initializeSocket = (httpServer: HttpServer) => {
                     sender: userId,
                     text,
                     mediaUrl,
-                    type
+                    type,
+                    replyTo: replyToId || null
                 });
                 chat.lastMessage = message._id;
                 chat.lastMessageAt = new Date();
                 await chat.save();
                 await message.populate("sender", "name avatar");
+                if (replyToId) {
+                    await message.populate("replyTo", "text mediaUrl sender type");
+                }
+
                 io.to(`chat:${chatId}`).emit("new-message", message);
                 for (const participantId of chat.participants) {
                     io.to(`user:${participantId}`).emit("new-message", message);
