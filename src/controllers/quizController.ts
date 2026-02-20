@@ -170,24 +170,43 @@ export const endQuiz = async (req: AuthRequest, res: Response) => {
     }
 };
 
-// Get Quiz By ID (for play screen)
-export const getQuizById = async (req: Request, res: Response) => {
+// Get Quiz By ID (for play screen — strips correct answers before sending)
+export const getQuizById = async (req: AuthRequest, res: Response) => {
     try {
         const { quizId } = req.params;
+        const userId = req.userId;
+        if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
         const quiz = await Quiz.findById(quizId).populate("createdBy", "name avatar");
         if (!quiz) return res.status(404).json({ message: "Quiz not found" });
-        res.status(200).json(quiz);
+
+        // Verify the caller is a member of the quiz's group
+        const group = await Chat.findOne({ _id: quiz.group, participants: userId });
+        if (!group) return res.status(403).json({ message: "You are not a member of this group" });
+
+        // Sanitize: strip correctOptionIndex so client cannot read answers
+        const sanitized = {
+            _id: quiz._id,
+            title: quiz.title,
+            isActive: quiz.isActive,
+            createdBy: quiz.createdBy,
+            group: quiz.group,
+            createdAt: quiz.createdAt,
+            questions: quiz.questions.map(({ question, options }) => ({ question, options })),
+        };
+
+        res.status(200).json(sanitized);
     } catch (error) {
         console.error("Error fetching quiz:", error);
         res.status(500).json({ message: "Failed to fetch quiz" });
     }
 };
 
-// Get Active Quizzes for a Group
+// Get Active Quizzes for a Group (isActive: true only)
 export const getGroupQuizzes = async (req: Request, res: Response) => {
     try {
         const { groupId } = req.params;
-        const quizzes = await Quiz.find({ group: groupId })
+        const quizzes = await Quiz.find({ group: groupId, isActive: true })
             .sort({ createdAt: -1 })
             .limit(10)
             .populate("createdBy", "name avatar");
