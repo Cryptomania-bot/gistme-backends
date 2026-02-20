@@ -169,3 +169,31 @@ export const endQuiz = async (req: AuthRequest, res: Response) => {
         res.status(500).json({ message: "Failed to end quiz" });
     }
 };
+
+// Get Quiz By ID (for play screen)
+export const getQuizById = async (req: Request, res: Response) => {
+    try {
+        const { quizId } = req.params;
+        const quiz = await Quiz.findById(quizId).populate("createdBy", "name avatar");
+        if (!quiz) return res.status(404).json({ message: "Quiz not found" });
+        res.status(200).json(quiz);
+    } catch (error) {
+        console.error("Error fetching quiz:", error);
+        res.status(500).json({ message: "Failed to fetch quiz" });
+    }
+};
+
+// Get Active Quizzes for a Group
+export const getGroupQuizzes = async (req: Request, res: Response) => {
+    try {
+        const { groupId } = req.params;
+        const quizzes = await Quiz.find({ group: groupId })
+            .sort({ createdAt: -1 })
+            .limit(10)
+            .populate("createdBy", "name avatar");
+        res.status(200).json(quizzes);
+    } catch (error) {
+        console.error("Error fetching group quizzes:", error);
+        res.status(500).json({ message: "Failed to fetch quizzes" });
+    }
+};
