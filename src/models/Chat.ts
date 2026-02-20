@@ -8,6 +8,7 @@ export interface IChat extends Document {
     updatedAt: Date;
     isGroup: boolean;
     name?: string;
+    description?: string;
     groupImage?: string;
     admin?: mongoose.Types.ObjectId;
     inviteCode?: string;
@@ -22,6 +23,7 @@ const chatSchema = new Schema<IChat>({
     lastMessageAt: { type: Date, default: Date.now },
     isGroup: { type: Boolean, default: false },
     name: { type: String },
+    description: { type: String, default: null },
     groupImage: { type: String, default: null },
     admin: { type: Schema.Types.ObjectId, ref: "User" },
     inviteCode: { type: String, unique: true, sparse: true },

@@ -103,3 +103,50 @@ export async function getOrCreateChat(req: AuthRequest, res: Response, next: Nex
 
     }
 }
+
+export async function getChatById(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+        const userId = req.userId;
+        const { chatId } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(chatId)) {
+            return res.status(400).json({ message: "Invalid chat ID" });
+        }
+
+        const chat = await Chat.findOne({ _id: chatId, participants: userId })
+            .populate("participants", "name email avatar")
+            .populate("lastMessage");
+
+        if (!chat) return res.status(404).json({ message: "Chat not found" });
+
+        if (chat.isGroup) {
+            return res.json({
+                _id: chat._id,
+                isGroup: true,
+                name: chat.name,
+                description: chat.description,
+                groupImage: chat.groupImage,
+                admin: chat.admin,
+                participants: chat.participants,
+                settings: chat.settings,
+                inviteCode: chat.inviteCode,
+                lastMessage: chat.lastMessage,
+                lastMessageAt: chat.lastMessageAt,
+                createdAt: chat.createdAt,
+            });
+        }
+
+        const otherParticipant = chat.participants.find((p: any) => p._id.toString() !== userId);
+        return res.json({
+            _id: chat._id,
+            isGroup: false,
+            participant: otherParticipant ?? null,
+            lastMessage: chat.lastMessage,
+            lastMessageAt: chat.lastMessageAt,
+            createdAt: chat.createdAt,
+        });
+    } catch (error) {
+        res.status(500);
+        next(error);
+    }
+}

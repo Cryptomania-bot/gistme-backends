@@ -20,6 +20,7 @@ export const createGroup = async (req: Request, res: Response) => {
             participants: [user._id],
             isGroup: true,
             name,
+            description: description ?? null,
             groupImage,
             admin: user._id,
             inviteCode,
