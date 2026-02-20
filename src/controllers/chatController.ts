@@ -109,7 +109,7 @@ export async function getChatById(req: AuthRequest, res: Response, next: NextFun
         const userId = req.userId;
         const { chatId } = req.params;
 
-        if (!mongoose.Types.ObjectId.isValid(chatId)) {
+        if (!chatId || !mongoose.Types.ObjectId.isValid(chatId as string)) {
             return res.status(400).json({ message: "Invalid chat ID" });
         }
 
