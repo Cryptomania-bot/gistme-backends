@@ -8,6 +8,7 @@ export interface IMessage extends Document {
     createdAt: Date;
     updatedAt: Date;
     quiz?: mongoose.Types.ObjectId;
+    replyTo?: mongoose.Types.ObjectId;
 }
 export declare const Message: mongoose.Model<IMessage, {}, {}, {}, mongoose.Document<unknown, {}, IMessage, {}, mongoose.DefaultSchemaOptions> & IMessage & Required<{
     _id: mongoose.Types.ObjectId;

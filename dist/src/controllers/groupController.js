@@ -5,7 +5,7 @@ export const createGroup = async (req, res) => {
     try {
         const { name, description, groupImage } = req.body;
         const userId = req.userId;
-        const user = await User.findOne({ clerkId: userId });
+        const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
@@ -14,6 +14,7 @@ export const createGroup = async (req, res) => {
             participants: [user._id],
             isGroup: true,
             name,
+            description: description ?? null,
             groupImage,
             admin: user._id,
             inviteCode,
@@ -33,7 +34,7 @@ export const joinGroup = async (req, res) => {
     try {
         const { inviteCode } = req.body;
         const userId = req.userId;
-        const user = await User.findOne({ clerkId: userId });
+        const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
@@ -57,7 +58,7 @@ export const generateInviteCode = async (req, res) => {
     try {
         const { groupId } = req.params;
         const userId = req.userId;
-        const user = await User.findOne({ clerkId: userId });
+        const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
@@ -76,6 +77,31 @@ export const generateInviteCode = async (req, res) => {
     catch (error) {
         console.error("Error generating invite code:", error);
         res.status(500).json({ message: "Failed to generate invite code" });
+    }
+};
+export const updateGroupSettings = async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const { settings } = req.body;
+        const userId = req.userId;
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        const group = await Chat.findOne({ _id: groupId, isGroup: true });
+        if (!group) {
+            return res.status(404).json({ message: "Group not found" });
+        }
+        if (group.admin?.toString() !== user._id.toString()) {
+            return res.status(403).json({ message: "Only admin can update settings" });
+        }
+        group.settings = { ...group.settings, ...settings };
+        await group.save();
+        res.status(200).json(group);
+    }
+    catch (error) {
+        console.error("Error updating group settings:", error);
+        res.status(500).json({ message: "Failed to update group settings" });
     }
 };
 //# sourceMappingURL=groupController.js.map

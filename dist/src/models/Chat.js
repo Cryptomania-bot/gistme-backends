@@ -5,6 +5,7 @@ const chatSchema = new Schema({
     lastMessageAt: { type: Date, default: Date.now },
     isGroup: { type: Boolean, default: false },
     name: { type: String },
+    description: { type: String, default: null },
     groupImage: { type: String, default: null },
     admin: { type: Schema.Types.ObjectId, ref: "User" },
     inviteCode: { type: String, unique: true, sparse: true },

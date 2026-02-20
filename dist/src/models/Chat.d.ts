@@ -7,6 +7,7 @@ export interface IChat extends Document {
     updatedAt: Date;
     isGroup: boolean;
     name?: string;
+    description?: string;
     groupImage?: string;
     admin?: mongoose.Types.ObjectId;
     inviteCode?: string;

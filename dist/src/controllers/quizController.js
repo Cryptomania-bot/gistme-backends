@@ -1,7 +1,10 @@
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Chat } from "../models/Chat.js";
 import { Quiz } from "../models/Quiz.js";
 import { QuizScore } from "../models/QuizScore.js";
 import { User } from "../models/User.js";
+import { Message } from "../models/Message.js";
+import { getIO } from "../utils/socket.js";
 // Admin starts a quiz
 export const createQuiz = async (req, res) => {
     try {
@@ -37,8 +40,6 @@ export const createQuiz = async (req, res) => {
         // We'll use the user as sender but formatted as a quiz announcement?
         // Or maybe a system user? For now let's use the creator.
         // Actually, let's create a message linked to the quiz.
-        // Import Message model needed
-        const { Message } = await import("../models/Message.js");
         const message = await Message.create({
             chat: groupId,
             sender: user._id,
@@ -48,11 +49,9 @@ export const createQuiz = async (req, res) => {
         // Populate sender for socket event
         await message.populate("sender", "name avatar");
         await message.populate("quiz", "title createdBy");
-        // Socket Broadcast
-        const { getIO } = await import("../utils/socket.js");
         const io = getIO();
         // Emit new message with quiz attachment
-        io.to(`chat:${groupId}`).emit("new-messages", message);
+        io.to(`chat:${groupId}`).emit("new-message", message);
         // Also emit specific quiz-started event if clients listen for it specially
         io.to(`chat:${groupId}`).emit("quiz-started", {
             quizId: quiz._id,
@@ -142,6 +141,86 @@ export const endQuiz = async (req, res) => {
     catch (error) {
         console.error("Error ending quiz:", error);
         res.status(500).json({ message: "Failed to end quiz" });
+    }
+};
+// Get Quiz By ID (for play screen — strips correct answers before sending)
+export const getQuizById = async (req, res) => {
+    try {
+        const { quizId } = req.params;
+        const userId = req.userId;
+        if (!userId)
+            return res.status(401).json({ message: "Unauthorized" });
+        const quiz = await Quiz.findById(quizId).populate("createdBy", "name avatar");
+        if (!quiz)
+            return res.status(404).json({ message: "Quiz not found" });
+        // Verify the caller is a member of the quiz's group
+        const group = await Chat.findOne({ _id: quiz.group, participants: userId });
+        if (!group)
+            return res.status(403).json({ message: "You are not a member of this group" });
+        // Sanitize: strip correctOptionIndex so client cannot read answers
+        const sanitized = {
+            _id: quiz._id,
+            title: quiz.title,
+            isActive: quiz.isActive,
+            createdBy: quiz.createdBy,
+            group: quiz.group,
+            createdAt: quiz.createdAt,
+            questions: quiz.questions.map(({ question, options }) => ({ question, options })),
+        };
+        res.status(200).json(sanitized);
+    }
+    catch (error) {
+        console.error("Error fetching quiz:", error);
+        res.status(500).json({ message: "Failed to fetch quiz" });
+    }
+};
+// Get Active Quizzes for a Group (isActive: true only)
+export const getGroupQuizzes = async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const quizzes = await Quiz.find({ group: groupId, isActive: true })
+            .sort({ createdAt: -1 })
+            .limit(10)
+            .populate("createdBy", "name avatar");
+        res.status(200).json(quizzes);
+    }
+    catch (error) {
+        console.error("Error fetching group quizzes:", error);
+        res.status(500).json({ message: "Failed to fetch quizzes" });
+    }
+};
+// Auto-generate quiz with AI
+export const generateQuizWithAI = async (req, res) => {
+    try {
+        const { topic, numQuestions = 5 } = req.body;
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            return res.status(500).json({ message: "Gemini API key is missing on the server." });
+        }
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const prompt = `Generate a ${numQuestions}-question multiple choice quiz about the topic: "${topic}".
+Output ONLY valid JSON matching this exact schema:
+{
+  "title": "A short catchy title for the quiz",
+  "questions": [
+    {
+      "text": "The question text",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correctIndex": <integer 0-3 indicating the correct option>
+    }
+  ]
+}
+Do not include any markdown backticks or extra text, just the raw JSON object.`;
+        const result = await model.generateContent(prompt);
+        let text = result.response.text();
+        text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const quizData = JSON.parse(text);
+        res.status(200).json(quizData);
+    }
+    catch (error) {
+        console.error("AI Generation Error:", error);
+        res.status(500).json({ message: "Failed to generate AI quiz" });
     }
 };
 //# sourceMappingURL=quizController.js.map

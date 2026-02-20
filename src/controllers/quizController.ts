@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Chat } from "../models/Chat.js";
 import { Quiz } from "../models/Quiz.js";
 import { QuizScore } from "../models/QuizScore.js";
@@ -211,5 +212,46 @@ export const getGroupQuizzes = async (req: Request, res: Response) => {
     } catch (error) {
         console.error("Error fetching group quizzes:", error);
         res.status(500).json({ message: "Failed to fetch quizzes" });
+    }
+};
+
+// Auto-generate quiz with AI
+export const generateQuizWithAI = async (req: AuthRequest, res: Response) => {
+    try {
+        const { topic, numQuestions = 5 } = req.body;
+        const apiKey = process.env.GEMINI_API_KEY;
+
+        if (!apiKey) {
+            return res.status(500).json({ message: "Gemini API key is missing on the server." });
+        }
+
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+        const prompt = `Generate a ${numQuestions}-question multiple choice quiz about the topic: "${topic}".
+Output ONLY valid JSON matching this exact schema:
+{
+  "title": "A short catchy title for the quiz",
+  "questions": [
+    {
+      "text": "The question text",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correctIndex": <integer 0-3 indicating the correct option>
+    }
+  ]
+}
+Do not include any markdown backticks or extra text, just the raw JSON object.`;
+
+        const result = await model.generateContent(prompt);
+        let text = result.response.text();
+
+        text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+
+        const quizData = JSON.parse(text);
+
+        res.status(200).json(quizData);
+    } catch (error) {
+        console.error("AI Generation Error:", error);
+        res.status(500).json({ message: "Failed to generate AI quiz" });
     }
 };

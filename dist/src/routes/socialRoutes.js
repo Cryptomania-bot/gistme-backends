@@ -1,13 +1,12 @@
 import express from "express";
 import { protectRoute } from "../middleware/auth.js";
-import { logCall, getRecentCalls } from "../controllers/callController.js";
-import { createStory, getActiveStories } from "../controllers/storyController.js";
+import { createPost, getPosts, toggleLike, toggleDislike, addComment } from "../controllers/postController.js";
 const router = express.Router();
-// Call Routes
-router.post("/calls", protectRoute, logCall);
-router.get("/calls", protectRoute, getRecentCalls);
-// Story Routes
-router.post("/stories", protectRoute, createStory);
-router.get("/stories", protectRoute, getActiveStories);
+// Post Routes
+router.post("/posts", protectRoute, createPost);
+router.get("/posts", protectRoute, getPosts);
+router.post("/posts/:id/like", protectRoute, toggleLike);
+router.post("/posts/:id/dislike", protectRoute, toggleDislike);
+router.post("/posts/:id/comment", protectRoute, addComment);
 export default router;
 //# sourceMappingURL=socialRoutes.js.map
