@@ -104,4 +104,84 @@ export const updateGroupSettings = async (req, res) => {
         res.status(500).json({ message: "Failed to update group settings" });
     }
 };
+export const leaveGroup = async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const userId = req.userId;
+        if (!userId)
+            return res.status(401).json({ message: "User not authenticated" });
+        const group = await Chat.findOne({ _id: groupId, isGroup: true });
+        if (!group)
+            return res.status(404).json({ message: "Group not found" });
+        if (!group.participants.includes(userId)) {
+            return res.status(400).json({ message: "You are not a member" });
+        }
+        group.participants = group.participants.filter(id => id.toString() !== userId.toString());
+        // Manage admin rights or deletion
+        if (group.participants.length === 0) {
+            await Chat.findByIdAndDelete(groupId);
+            return res.status(200).json({ message: "Group deleted" });
+        }
+        else if (group.admin?.toString() === userId.toString()) {
+            group.admin = group.participants[0];
+        }
+        await group.save();
+        res.status(200).json({ message: "Left group successfully" });
+    }
+    catch (error) {
+        console.error("Error leaving group:", error);
+        res.status(500).json({ message: "Failed to leave group" });
+    }
+};
+export const removeMember = async (req, res) => {
+    try {
+        const { groupId, memberId } = req.params;
+        const userId = req.userId;
+        if (!userId)
+            return res.status(401).json({ message: "User not authenticated" });
+        const group = await Chat.findOne({ _id: groupId, isGroup: true });
+        if (!group)
+            return res.status(404).json({ message: "Group not found" });
+        if (group.admin?.toString() !== userId.toString()) {
+            return res.status(403).json({ message: "Only admin can remove members" });
+        }
+        if (memberId === userId.toString()) {
+            return res.status(400).json({ message: "Use leave group endpoint to remove yourself" });
+        }
+        group.participants = group.participants.filter(id => id.toString() !== memberId);
+        await group.save();
+        res.status(200).json({ message: "Member removed" });
+    }
+    catch (error) {
+        console.error("Error removing member:", error);
+        res.status(500).json({ message: "Failed to remove member" });
+    }
+};
+export const updateGroup = async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const { name, description, groupImage } = req.body;
+        const userId = req.userId;
+        if (!userId)
+            return res.status(401).json({ message: "User not authenticated" });
+        const group = await Chat.findOne({ _id: groupId, isGroup: true });
+        if (!group)
+            return res.status(404).json({ message: "Group not found" });
+        if (group.admin?.toString() !== userId.toString()) {
+            return res.status(403).json({ message: "Only admin can update group info" });
+        }
+        if (name)
+            group.name = name;
+        if (description !== undefined)
+            group.description = description;
+        if (groupImage !== undefined)
+            group.groupImage = groupImage;
+        await group.save();
+        res.status(200).json(group);
+    }
+    catch (error) {
+        console.error("Error updating group:", error);
+        res.status(500).json({ message: "Failed to update group" });
+    }
+};
 //# sourceMappingURL=groupController.js.map

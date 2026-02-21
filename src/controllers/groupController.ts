@@ -130,6 +130,7 @@ export const leaveGroup = async (req: Request, res: Response) => {
     try {
         const { groupId } = req.params;
         const userId = (req as AuthRequest).userId;
+        if (!userId) return res.status(401).json({ message: "User not authenticated" });
 
         const group = await Chat.findOne({ _id: groupId, isGroup: true });
         if (!group) return res.status(404).json({ message: "Group not found" });
@@ -145,7 +146,7 @@ export const leaveGroup = async (req: Request, res: Response) => {
             await Chat.findByIdAndDelete(groupId);
             return res.status(200).json({ message: "Group deleted" });
         } else if (group.admin?.toString() === userId.toString()) {
-            group.admin = group.participants[0];
+            group.admin = group.participants[0] as any;
         }
 
         await group.save();
@@ -160,6 +161,7 @@ export const removeMember = async (req: Request, res: Response) => {
     try {
         const { groupId, memberId } = req.params;
         const userId = (req as AuthRequest).userId;
+        if (!userId) return res.status(401).json({ message: "User not authenticated" });
 
         const group = await Chat.findOne({ _id: groupId, isGroup: true });
         if (!group) return res.status(404).json({ message: "Group not found" });
@@ -187,6 +189,7 @@ export const updateGroup = async (req: Request, res: Response) => {
         const { groupId } = req.params;
         const { name, description, groupImage } = req.body;
         const userId = (req as AuthRequest).userId;
+        if (!userId) return res.status(401).json({ message: "User not authenticated" });
 
         const group = await Chat.findOne({ _id: groupId, isGroup: true });
         if (!group) return res.status(404).json({ message: "Group not found" });
