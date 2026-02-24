@@ -21,7 +21,21 @@ const allowedOrigins = [
 
 // Configure CORS to allow requests from your specific frontend domains
 app.use(cors({
-  origin: allowedOrigins,
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    // Allow local network IPs for mobile testing (e.g. Expo Go)
+    if (origin.startsWith('http://192.168.') || origin.startsWith('http://10.')) {
+      return callback(null, true);
+    }
+
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true, // This is crucial for allowing Authorization headers
 }));
 app.use(express.json());
